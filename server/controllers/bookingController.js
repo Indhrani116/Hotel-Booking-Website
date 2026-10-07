@@ -2,7 +2,7 @@ import transporter from "../configs/nodemailer.js";
 import Booking from "../models/Booking.js";
 import Hotel from "../models/Hotel.js";
 import Room from "../models/Room.js";
-import stripe from "stripe";
+import Stripe from "stripe";
 
 // Function to check availability of a room
 const checkAvailability = async ({ checkInDate, checkOutDate, room }) => {
@@ -298,45 +298,125 @@ export const getHotelBookings = async (req, res) => {
     }
 };
 
-export const stripePayment = async (req,res)=>{
-try {
-    const { bookingId } = req.body;
-    const booking = await Booking.findById(bookingId);
-    const roomData = await Room.findById(booking.room).populate('hotel');
-    const totalPrice = booking.totalPrice;
-    const { origin } = req.headers;
+export const stripePayment = async (req, res) => {
+    try {
+        const { bookingId } = req.body;
 
-    const stripeInstance = new stripe(process.env.STRIPE_SECRET_KEY);
-    const line_items = [
-        {
-            price_data:{
-               currency: "usd", 
-               product_data:{
-                name: roomData.hotel.name,
-               },
-               unit_amount:totalPrice*100
-            },
-            quantity:1,
-        }
-    ]
-    //create checkout session
-    const session = await stripeInstance.checkout.sessions.create({
-        line_items,
-        mode:"payment",
-        success_url: `${origin}/loader/my-bookings`,
-        cancel_url: `${origin}/loader/my-bookings`,
-        metadata:{
-            bookingId,
-        }
-    })
-    res.json({
-        success:true, url: session.url
-    })
+        console.log("Stripe payment request:", bookingId);
+        console.log(
+            "Stripe key exists:",
+            !!process.env.STRIPE_SECRET_KEY
+        );
 
-} catch (error) {
-    res.json({
-        success:false, message: "Payment Failed"
-    })
-    
-}
-}
+        if (!bookingId) {
+            return res.status(400).json({
+                success: false,
+                message: "Booking ID is required"
+            });
+        }
+
+        const booking = await Booking.findById(bookingId);
+
+        if (!booking) {
+            return res.status(404).json({
+                success: false,
+                message: "Booking not found"
+            });
+        }
+
+        const roomData = await Room.findById(booking.room)
+            .populate("hotel");
+
+        if (!roomData) {
+            return res.status(404).json({
+                success: false,
+                message: "Room not found"
+            });
+        }
+
+        if (!roomData.hotel) {
+            return res.status(404).json({
+                success: false,
+                message: "Hotel not found"
+            });
+        }
+
+        const totalPrice = Number(booking.totalPrice);
+
+        if (!totalPrice || totalPrice <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid booking amount"
+            });
+        }
+
+        const { origin } = req.headers;
+
+        console.log("Frontend origin:", origin);
+        console.log("Booking amount:", totalPrice);
+
+        if (!process.env.STRIPE_SECRET_KEY) {
+            return res.status(500).json({
+                success: false,
+                message: "Stripe secret key is missing"
+            });
+        }
+
+        if (!origin) {
+            return res.status(400).json({
+                success: false,
+                message: "Frontend origin is missing"
+            });
+        }
+
+        const stripeInstance = new Stripe(
+            process.env.STRIPE_SECRET_KEY
+        );
+
+        const line_items = [
+            {
+                price_data: {
+                    currency: "usd",
+                    product_data: {
+                        name: roomData.hotel.name,
+                    },
+                    unit_amount: Math.round(totalPrice * 100),
+                },
+                quantity: 1,
+            }
+        ];
+
+        const session =
+            await stripeInstance.checkout.sessions.create({
+                line_items,
+                mode: "payment",
+                success_url: `${origin}/my-bookings`,
+                cancel_url: `${origin}/my-bookings`,
+                metadata: {
+                    bookingId: bookingId.toString(),
+                },
+            });
+
+        console.log("Stripe session created:", session.id);
+        console.log("Stripe URL:", session.url);
+
+        return res.json({
+            success: true,
+            url: session.url
+        });
+
+    } catch (error) {
+
+        console.error("========== STRIPE ERROR ==========");
+        console.error(error);
+        console.error("Message:", error.message);
+        console.error("Code:", error.code);
+        console.error("Type:", error.type);
+        console.error("==================================");
+
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
