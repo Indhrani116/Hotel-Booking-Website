@@ -236,45 +236,63 @@ export const getUserBookings = async (req, res) => {
 // GET /api/bookings/hotel
 export const getHotelBookings = async (req, res) => {
     try {
+        // Logged-in hotel owner's Clerk ID
+        const ownerId = req.user._id;
+
+        console.log("Dashboard owner ID:", ownerId);
+
+        // Find hotel belonging to this owner
         const hotel = await Hotel.findOne({
-            owner: req.auth.userId
+            owner: ownerId
         });
 
+        console.log("Hotel found:", hotel);
+
         if (!hotel) {
-            return res.json({
+            return res.status(404).json({
                 success: false,
-                message: "No Hotel found"
+                message: "No hotel found for this owner"
             });
         }
 
+        // Find all bookings for this hotel
         const bookings = await Booking.find({
             hotel: hotel._id
         })
-            .populate("room hotel user")
+            .populate("user")
+            .populate("room")
+            .populate("hotel")
             .sort({ createdAt: -1 });
 
+        console.log("Hotel bookings:", bookings);
+
+        // Total number of bookings
         const totalBookings = bookings.length;
 
+        // Total revenue
         const totalRevenue = bookings.reduce(
-            (acc, booking) => acc + booking.totalPrice,
+            (total, booking) => total + Number(booking.totalPrice || 0),
             0
         );
+
+        console.log("Total bookings:", totalBookings);
+        console.log("Total revenue:", totalRevenue);
 
         res.json({
             success: true,
             dashboardData: {
+                bookings,
                 totalBookings,
-                totalRevenue,
-                bookings
+                totalRevenue
             }
         });
 
     } catch (error) {
-        console.error(error);
+        console.error("GET HOTEL BOOKINGS ERROR:", error);
 
-        res.json({
+        res.status(500).json({
             success: false,
-            message: "Failed to fetch bookings"
+            message: error.message
         });
     }
 };
