@@ -21,6 +21,7 @@
     "mongoose": "^9.10.4",
     "multer": "^2.4.0",
     "nodemailer": "^10.0.15",
+    "stripe": "^23.0.0",
     "svix": "^2.6.1"
   },
   "devDependencies": {
