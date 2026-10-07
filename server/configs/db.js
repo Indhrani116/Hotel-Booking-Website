@@ -1,12 +1,16 @@
-import mongoose from 'mongoose'; // Fixed: changed 'ort' to 'import'
+import mongoose from "mongoose";
 
-const connectDB = async () => {  
+const connectDB = async () => {
     try {
-        mongoose.connection.on('connected',()=> console.log("Database Connected"));
-        await mongoose.connect(`${process.env.MONGODB_URI}/hotel-booking`)
-    } catch (error) {
-        console.log(error.message);
-    } // Fixed: changed 'st' to 'const'
-}
+        mongoose.connection.on("connected", () => {
+            console.log("Database Connected");
+        });
 
-export default connectDB;        // Fixed: changed 'ort' to 'export'
+        await mongoose.connect(process.env.MONGODB_URI);
+
+    } catch (error) {
+        console.log("Database connection error:", error.message);
+    }
+};
+
+export default connectDB;
