@@ -1,3 +1,4 @@
+import transporter from "../configs/nodemailer.js";
 import Booking from "../models/Booking.js";
 import Hotel from "../models/Hotel.js";
 import Room from "../models/Room.js";
@@ -58,14 +59,7 @@ export const createbooking = async (req, res) => {
             guests
         } = req.body;
 
-        console.log("========== BOOKING REQUEST ==========");
-console.log("BODY:", req.body);
-console.log("Room:", room);
-console.log("Check-In:", checkInDate);
-console.log("Check-Out:", checkOutDate);
-console.log("Guests:", guests);
-console.log("=====================================");
-
+       
         const user = req.user._id;
 
         if (!checkInDate || !checkOutDate || !guests) {
@@ -114,15 +108,87 @@ console.log("=====================================");
         totalPrice *= nights;
 
         // Create booking
-        await Booking.create({
-            user,
-            room,
-            hotel: roomData.hotel._id,
-            guests: Number(guests),
-            checkInDate,
-            checkOutDate,
-            totalPrice
-        });
+// Create booking
+const booking = await Booking.create({
+    user,
+    room,
+    hotel: roomData.hotel._id,
+    guests: Number(guests),
+    checkInDate,
+    checkOutDate,
+    totalPrice
+});
+
+console.log("Booking created:", booking._id);
+
+// Email details
+const mailOptions = {
+    from: process.env.SENDER_EMAIL,
+    to: req.user.email,
+    subject: 'Hotel Booking Confirmation',
+
+    html: `
+        <h2>Your Booking is Confirmed!</h2>
+
+        <p>Dear ${req.user.username || "Guest"},</p>
+
+        <p>
+            Thank you for your booking! Here are your booking details:
+        </p>
+
+        <ul>
+            <li>
+                <strong>Booking ID:</strong>
+                ${booking._id}
+            </li>
+
+            <li>
+                <strong>Hotel Name:</strong>
+                ${roomData.hotel.name}
+            </li>
+
+            <li>
+                <strong>Location:</strong>
+                ${roomData.hotel.address}
+            </li>
+
+            <li>
+                <strong>Check-In:</strong>
+                ${new Date(booking.checkInDate).toDateString()}
+            </li>
+
+            <li>
+                <strong>Check-Out:</strong>
+                ${new Date(booking.checkOutDate).toDateString()}
+            </li>
+
+            <li>
+                <strong>Guests:</strong>
+                ${booking.guests}
+            </li>
+
+            <li>
+                <strong>Booking Amount:</strong>
+                ${process.env.CURRENCY || '$'} ${booking.totalPrice} /night
+            </li>
+        </ul>
+
+        <p>
+            We look forward to welcoming you!
+        </p>
+
+        <p>
+            If you need to make any changes, feel free to contact us.
+        </p>
+    `
+};
+
+try {
+    await transporter.sendMail(mailOptions);
+    console.log("Confirmation email sent successfully!");
+} catch (emailError) {
+    console.error("EMAIL ERROR:", emailError);
+}
 
         res.json({
             success: true,
