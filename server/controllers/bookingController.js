@@ -238,6 +238,8 @@ export const getUserBookings = async (req, res) => {
 export const getHotelBookings = async (req, res) => {
     try {
         // Logged-in hotel owner's Clerk ID
+res.set("Cache-Control", "no-store");
+
         const ownerId = req.user._id;
 
         console.log("Dashboard owner ID:", ownerId);

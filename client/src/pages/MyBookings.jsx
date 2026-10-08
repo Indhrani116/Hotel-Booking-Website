@@ -11,8 +11,15 @@ const MyBookings = () => {
 
     const fetchUserBookings= async()=>{
         try {
-            const { data } = await axios.get('/api/bookings/user',{headers:{
-                Authorization: `Bearer ${await getToken()}` }})
+            const { data } = await axios.get(
+    `/api/bookings/user?t=${Date.now()}`,
+    {
+        headers: {
+            Authorization: `Bearer ${await getToken()}`,
+            "Cache-Control": "no-cache"
+        }
+    }
+);
                 if( data.success){
                     setBookings(data.bookings)
                 }else{
