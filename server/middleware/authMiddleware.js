@@ -1,24 +1,34 @@
 import User from "../models/User.js";
 import { getAuth } from "@clerk/express";
 
-// Middleware to check if user is authenticated
 export const protect = async (req, res, next) => {
     try {
-        const { userId } = getAuth(req);
+        const { userId, isAuthenticated } = getAuth(req);
 
+        console.log("========== AUTH DEBUG ==========");
+        console.log("Authenticated:", isAuthenticated);
         console.log("Clerk userId:", userId);
+        console.log("MongoDB database:", User.db.name);
+        console.log("MongoDB state:", User.db.readyState);
 
-        if (!userId) {
-            return res.json({
+        if (!isAuthenticated || !userId) {
+            return res.status(401).json({
                 success: false,
-                message: "not authenticated"
+                message: "Not authenticated"
             });
         }
 
         const user = await User.findById(userId);
 
+        console.log(
+            "MongoDB user:",
+            user ? user._id : "NOT FOUND"
+        );
+
+        console.log("================================");
+
         if (!user) {
-            return res.json({
+            return res.status(404).json({
                 success: false,
                 message: "User not found in database"
             });
@@ -29,9 +39,9 @@ export const protect = async (req, res, next) => {
         next();
 
     } catch (error) {
-        console.log("Auth middleware error:", error.message);
+        console.error("AUTH MIDDLEWARE ERROR:", error);
 
-        return res.json({
+        return res.status(500).json({
             success: false,
             message: error.message
         });
