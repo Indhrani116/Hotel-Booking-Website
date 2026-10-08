@@ -5,11 +5,7 @@ export const protect = async (req, res, next) => {
     try {
         const { userId, isAuthenticated } = getAuth(req);
 
-        console.log("========== AUTH DEBUG ==========");
-        console.log("Authenticated:", isAuthenticated);
-        console.log("Clerk userId:", userId);
-        console.log("MongoDB database:", User.db.name);
-        console.log("MongoDB state:", User.db.readyState);
+        
 
         if (!isAuthenticated || !userId) {
             return res.status(401).json({
@@ -19,6 +15,12 @@ export const protect = async (req, res, next) => {
         }
 
         const user = await User.findById(userId);
+        const userCount = await User.countDocuments();
+const firstUser = await User.findOne().select("_id email username");
+
+console.log("Total users in this database:", userCount);
+console.log("First user in database:", firstUser);
+
 
         console.log(
             "MongoDB user:",
