@@ -2,7 +2,7 @@ import express from 'express';
 import { checkAvailabilityAPI, 
     createbooking,
      getHotelBookings, getUserBookings, 
-     stripePayment } from '../controllers/bookingController.js';
+     stripePayment, confirmStripePayment } from '../controllers/bookingController.js';
 import { protect } from '../middleware/authMiddleware.js';
 
 const bookingRouter = express.Router();
@@ -13,5 +13,6 @@ bookingRouter.get('/user',protect,getUserBookings);
 bookingRouter.get('/hotel',protect,getHotelBookings);
 
 bookingRouter.post('/stripe-payment',protect,stripePayment);
+bookingRouter.get('/confirm-payment',protect,confirmStripePayment);
 
 export default bookingRouter;

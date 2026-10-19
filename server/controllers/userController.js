@@ -7,7 +7,7 @@ export const getUserData= async (req,res)=>{
         const recentSearchedCities=req.user.recentSearchedCities;
         res.json({success:true,role,recentSearchedCities})
     } catch (error) {
-        res.json({success:false,message:error.message})
+        res.status(500).json({success:false,message:"Unable to fetch user data"})
         
     }
 }
@@ -16,17 +16,29 @@ export const getUserData= async (req,res)=>{
 export const storeRecentSearchedCities = async(req,res)=>{
     try {
         const {recentSearchedCity}= req.body
-        const user = await req.user;
+        if (
+            typeof recentSearchedCity !== "string" ||
+            !recentSearchedCity.trim() ||
+            recentSearchedCity.trim().length > 100
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Enter a city name up to 100 characters"
+            });
+        }
+
+        const user = req.user;
+        const city = recentSearchedCity.trim();
 
         if(user.recentSearchedCities.length<3){
-            user.recentSearchedCities.push(recentSearchedCity)
+            user.recentSearchedCities.push(city)
         }else{
             user.recentSearchedCities.shift();
-            user.recentSearchedCities.push(recentSearchedCity)
+            user.recentSearchedCities.push(city)
         }
         await user.save();
         res.json({success:true,message:"City added"})
     } catch (error) {
-        res.json({success:false,message:error.message})
+        res.status(500).json({success:false,message:"Unable to save the recent search"})
     }
 }

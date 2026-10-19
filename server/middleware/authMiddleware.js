@@ -15,19 +15,6 @@ export const protect = async (req, res, next) => {
         }
 
         const user = await User.findById(userId);
-        const userCount = await User.countDocuments();
-const firstUser = await User.findOne().select("_id email username");
-
-console.log("Total users in this database:", userCount);
-console.log("First user in database:", firstUser);
-
-
-        console.log(
-            "MongoDB user:",
-            user ? user._id : "NOT FOUND"
-        );
-
-        console.log("================================");
 
         if (!user) {
             return res.status(404).json({
@@ -37,15 +24,14 @@ console.log("First user in database:", firstUser);
         }
 
         req.user = user;
-
         next();
 
     } catch (error) {
-        console.error("AUTH MIDDLEWARE ERROR:", error);
+        console.error("Authentication middleware failed:", error.name);
 
         return res.status(500).json({
             success: false,
-            message: error.message
+            message: "Unable to authenticate this request"
         });
     }
 };

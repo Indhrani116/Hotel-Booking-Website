@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { assets, facilityIcons, roomCommonData } from '../assets/assets'
 import StarRating from '../components/StarRating'
@@ -6,10 +6,14 @@ import { useAppContext } from '../context/AppContext'
 import toast from 'react-hot-toast'
 
 const RoomDetails = () => {
-    const {id} = useParams(null)
+    const {id} = useParams()
     const {rooms, getToken, axios,navigate} = useAppContext()
-    const [room,setRoom] = useState(null)
-    const [mainImage,setMainImage] = useState(null)
+    const [selectedImage,setSelectedImage] = useState(null)
+    const [today] = useState(() => new Date().toISOString().split('T')[0])
+    const room = rooms.find(item => item._id === id) || null
+    const mainImage = room?.images?.includes(selectedImage)
+        ? selectedImage
+        : room?.images?.[0] || null
 
     const [checkInDate,setCheckInDate] = useState(null);
     const [checkOutDate,setCheckOutDate] = useState(null);
@@ -20,8 +24,10 @@ const RoomDetails = () => {
      // Check if the Room is available
      const checkAvailability = async ()=>{
         try {
+            setIsAvailable(false)
           // Check is Check-In-Date is greater than Check-Out-Date
-            if(checkInDate >= checkOutDate){
+            if(!checkInDate || !checkOutDate || checkInDate >= checkOutDate){
+                setIsAvailable(false)
                 toast.error('Check-In Date should be less than check-Out Date')
                 return;
             }
@@ -38,6 +44,7 @@ const RoomDetails = () => {
                 toast.error(data.message)
             }
         } catch (error) {
+            setIsAvailable(false)
             toast.error(error.message)
             
         }
@@ -58,19 +65,16 @@ const RoomDetails = () => {
                     navigate('/my-bookings')
                     scrollTo(0,0)
                 }else{
+                    setIsAvailable(false)
                     toast.error(data.message)
                 }
             }
         } catch (error) {
-            toast.error(error.message)
+            setIsAvailable(false)
+            toast.error(error.response?.data?.message || error.message)
         }
      }
 
-    useEffect(()=>{
-       const room= rooms.find(room => room._id == id)
-       room && setRoom(room)
-       room && setMainImage(room.images[0])
-    },[rooms])
   return  room && (
     <div className='py-28 md:py-35 px-4 md:ppx-16 lg:px-24 xl:px-32'>
         {/* Room details */}
@@ -99,7 +103,7 @@ const RoomDetails = () => {
         </div>
         <div className='grid grid-cols-2 gap-4 lg:w-1/2 w-full'>
             {room ?.images?.length >1 && room.images.map((image,index)=>(
-                <img onClick={()=> setMainImage(image)}
+                <img onClick={()=> setSelectedImage(image)}
                 key={index} src={image} alt="Room Image"
                 className={`w-full rounded-xl shadow-md object-cover
                     cursor-pointer ${mainImage == image ?  'outline-3 outline-orange-500' :""}`}/>
@@ -136,8 +140,8 @@ const RoomDetails = () => {
 
             <div className='flex flex-col'>
                 <label htmlFor="checkInDate" className='font-medium'>Check-In</label>
-                <input onChange={(e)=>setCheckInDate(e.target.value)} 
-                min={new Date().toISOString().split('T')[0]}  type="date" id='checkInDate'placeholder='Check-In'
+                <input onChange={(e)=>{setCheckInDate(e.target.value); setIsAvailable(false)}} 
+                min={today}  type="date" id='checkInDate'placeholder='Check-In'
                 className='w-full rounded border border-gray-300 px-3 py-2 mt-1.5
                 outline-none' required/>
             </div>
@@ -145,8 +149,8 @@ const RoomDetails = () => {
              <div className='flex flex-col'>
                 <label htmlFor="checkOutDate" className='font-medium'>Check-Out</label>
                 <input
-  onChange={(e) => setCheckOutDate(e.target.value)}
-  min={checkInDate || new Date().toISOString().split('T')[0]}
+  onChange={(e) => {setCheckOutDate(e.target.value); setIsAvailable(false)}}
+  min={checkInDate || today}
   type="date"
   id="checkOutDate"
   className='w-full rounded border border-gray-300 px-3 py-2 mt-1.5 outline-none'
@@ -156,7 +160,7 @@ const RoomDetails = () => {
                 <div className='w-px h-15 bg-gray-300/70 max-md:hidden'> </div>
              <div className='flex flex-col'>
                 <label htmlFor="guests" className='font-medium'>Guests </label>
-                <input onChange={(e)=>setGuests(e.target.value)} value={guests} type="number" id='guests'placeholder='1'
+                <input onChange={(e)=>setGuests(e.target.value)} value={guests} min="1" step="1" type="number" id='guests'placeholder='1'
                 className='max-w-20 rounded border border-gray-300 px-3 py-2 mt-1.5 outline-none'required/>
             </div>
 
