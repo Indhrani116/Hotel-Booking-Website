@@ -1,8 +1,6 @@
 import Stripe from "stripe";
 import Booking from "../models/Booking.js";
 
-const stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY);
-
 export const stripeWebhooks = async (request, response) => {
 
     const sig = request.headers["stripe-signature"];
@@ -10,6 +8,12 @@ export const stripeWebhooks = async (request, response) => {
     let event;
 
     try {
+        if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
+            console.error("Stripe webhook secrets are not configured");
+            return response.status(500).send("Stripe webhook is not configured");
+        }
+
+        const stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY);
         event = stripeInstance.webhooks.constructEvent(
             request.body,
             sig,
@@ -18,7 +22,7 @@ export const stripeWebhooks = async (request, response) => {
 
     } catch (error) {
 
-        console.error("Webhook verification failed:", error.message);
+        console.error("Stripe webhook verification failed:", error.message);
 
         return response
             .status(400)
@@ -27,19 +31,19 @@ export const stripeWebhooks = async (request, response) => {
 
     try {
 
-        // Payment completed successfully
-        if (event.type === "checkout.session.completed") {
+        // Stripe can report successful payment through either event for
+        // Checkout sessions that use delayed payment methods.
+        if (
+            event.type === "checkout.session.completed" ||
+            event.type === "checkout.session.async_payment_succeeded"
+        ) {
 
             const session = event.data.object;
 
-            console.log("Checkout session completed:", session.id);
-
             const bookingId = session.metadata?.bookingId;
 
-            console.log("Booking ID:", bookingId);
-
             if (!bookingId) {
-                console.log("Booking ID not found in metadata");
+                console.error("Checkout Session is missing bookingId metadata");
                 return response.json({ received: true });
             }
 
@@ -56,7 +60,17 @@ export const stripeWebhooks = async (request, response) => {
                     }
                 );
 
-                console.log("Booking payment updated:", booking);
+                if (!booking) {
+                    console.error("No booking found for completed Stripe Session");
+                    return response.status(404).json({
+                        success: false,
+                        message: "Booking not found"
+                    });
+                }
+
+                console.log("Booking payment marked as paid:", booking._id);
+            } else {
+                console.log("Stripe Session is not paid yet:", event.type);
             }
         }
 
@@ -68,11 +82,11 @@ export const stripeWebhooks = async (request, response) => {
 
     } catch (error) {
 
-        console.error("Webhook processing error:", error);
+        console.error("Stripe webhook processing failed:", error.message);
 
         return response.status(500).json({
             success: false,
-            message: error.message
+            message: "Unable to process Stripe webhook"
         });
     }
 };

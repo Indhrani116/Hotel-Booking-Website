@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import Title from '../components/Title'
 import { assets } from '../assets/assets'
 import { useAppContext } from '../context/AppContext'
@@ -9,7 +9,7 @@ const MyBookings = () => {
     const {axios,getToken,user} = useAppContext()
     const [bookings,setBookings] = useState([])
 
-    const fetchUserBookings= async()=>{
+    const fetchUserBookings = useCallback(async () => {
         try {
             const { data } = await axios.get(
     `/api/bookings/user?t=${Date.now()}`,
@@ -28,7 +28,7 @@ const MyBookings = () => {
         } catch (error) {
             toast.error(error.message)
         }
-    }
+    }, [axios, getToken])
 
     const handlePatment = async (bookingId) =>{
         try {
@@ -36,7 +36,7 @@ const MyBookings = () => {
                 {headers: { Authorization: `Bearer ${await getToken()}`}}
             )
             if(data.success){
-               window.location.href = data.url 
+               window.location.assign(data.url)
             }else{
                 toast.error(data.message)
             }
@@ -47,10 +47,51 @@ const MyBookings = () => {
     }
 
     useEffect(()=>{
-        if(user){
-            fetchUserBookings()
+        if (!user) return
+
+        const confirmPaymentFromStripe = async () => {
+            const sessionId = new URLSearchParams(window.location.search).get('session_id')
+
+            if (sessionId) {
+                try {
+                    const token = await getToken()
+                    let isPaid = false
+
+                    // Delayed payment methods can settle shortly after the redirect.
+                    for (let attempt = 0; attempt < 6; attempt++) {
+                        const { data } = await axios.get('/api/bookings/confirm-payment', {
+                            params: { session_id: sessionId },
+                            headers: {
+                                Authorization: `Bearer ${token}`,
+                                'Cache-Control': 'no-cache'
+                            }
+                        })
+
+                        if (data.success && data.isPaid) {
+                            isPaid = true
+                            window.history.replaceState({}, document.title, window.location.pathname)
+                            toast.success('Payment confirmed')
+                            break
+                        }
+
+                        if (attempt < 5) {
+                            await new Promise(resolve => setTimeout(resolve, 1500))
+                        }
+                    }
+
+                    if (!isPaid) {
+                        toast('Payment is still processing. Refresh this page in a moment to check again.')
+                    }
+                } catch (error) {
+                    toast.error(error.response?.data?.message || 'Could not verify payment with Stripe')
+                }
+            }
+
+            await fetchUserBookings()
         }
-    },[user])
+
+        confirmPaymentFromStripe()
+    },[user, axios, fetchUserBookings, getToken])
 
   return (
     <div className='py-28 md:pb-35 md:pt-32 px-4 md:px-16 lg:px-24 xl:px-32'>

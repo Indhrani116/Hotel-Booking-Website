@@ -44,11 +44,11 @@ export const registerHotel = async (req, res) => {
         });
 
     } catch (error) {
-        console.error("Register hotel error:", error);
+        console.error("Hotel registration failed:", error.name);
 
         res.status(500).json({
             success: false,
-            message: error.message
+            message: "Unable to register hotel"
         });
     }
 };

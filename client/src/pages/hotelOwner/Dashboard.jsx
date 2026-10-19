@@ -1,5 +1,5 @@
 import { toast } from 'react-hot-toast';
-import React, { useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import Title from '../../components/Title'
 import { assets,  } from '../../assets/assets'
 import { useAppContext } from '../../context/AppContext'
@@ -15,7 +15,7 @@ const [dashboardData,setDashboardData] = useState({
     totalRevenue:0,
 })
 
-const fetchDashboardData = async ()=>{
+const fetchDashboardData = useCallback(async ()=>{
     try {
         const { data } = await axios.get('/api/bookings/hotel',{headers:
             {Authorization: `Bearer ${await getToken()}`}
@@ -28,13 +28,13 @@ const fetchDashboardData = async ()=>{
     } catch (error) {
         toast.error(error.message)
     }
-}
+}, [axios, getToken])
 
 useEffect(()=>{
     if(user){
         fetchDashboardData();
     }
-},[user])
+},[user, fetchDashboardData])
 
   return (
     <div>
@@ -59,7 +59,7 @@ useEffect(()=>{
             <img src={assets.totalRevenueIcon} alt=""
              className='max-sm:hidden h-10'/>
              <div className='flex flex-col sm:ml-4 font-medium'>
-                <p className='text-blue-500 text-lg'>Total Revenue</p>
+                <p className='text-blue-500 text-lg'>Paid Revenue</p>
                 <p className='text-neutral-400 text-base'>{currency} {dashboardData.totalRevenue}</p>
              </div>
         </div>
